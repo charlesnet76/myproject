@@ -4,6 +4,19 @@ import AddUserModal from './components/AddUserModal'
 import UserDetailModal from './components/UserDetailModal'
 import './App.css'
 
+function timeAgo(dateStr) {
+  if (!dateStr) return 'Never'
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 function avatarUrl(first, last) {
   const seed = encodeURIComponent(`${first} ${last}`)
   return `https://api.dicebear.com/9.x/initials/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&fontFamily=Helvetica`
@@ -75,6 +88,12 @@ function UserCard({ user, confirmDelete, onDeleteClick, onDeleteConfirm, onDelet
           </svg>
           <span className="mono">{user.ip_address || '—'}</span>
         </div>
+        <div className="card-activity">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>{timeAgo(user.lastActivity)}</span>
+        </div>
       </div>
       <div className="card-footer" onClick={(e) => e.stopPropagation()}>
         {isConfirming ? (
@@ -105,6 +124,18 @@ export default function App() {
   const [showModal, setShowModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
+
+  const handleSelectUser = async (user) => {
+    setSelectedUser(user)
+    try {
+      const res = await fetch(`/api/users/${user._id}/activity`, { method: 'PATCH' })
+      const updated = await res.json()
+      setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u)))
+      setSelectedUser(updated)
+    } catch {
+      // activity update is best-effort
+    }
+  }
 
   useEffect(() => {
     fetch('/api/users')
@@ -246,7 +277,7 @@ export default function App() {
                 onDeleteClick={setConfirmDelete}
                 onDeleteConfirm={handleDelete}
                 onDeleteCancel={() => setConfirmDelete(null)}
-                onSelect={setSelectedUser}
+                onSelect={handleSelectUser}
               />
             ))}
           </div>

@@ -11,13 +11,14 @@ function fmt(dateStr) {
 }
 
 const rows = [
-  { label: 'First Name',  key: 'first_name' },
-  { label: 'Last Name',   key: 'last_name' },
-  { label: 'Email',       key: 'email' },
-  { label: 'Gender',      key: 'gender' },
-  { label: 'IP Address',  key: 'ip_address' },
-  { label: 'Member Since',key: 'createdAt', render: fmt },
-  { label: 'Last Updated',key: 'updatedAt', render: fmt },
+  { label: 'First Name',    key: 'first_name' },
+  { label: 'Last Name',     key: 'last_name' },
+  { label: 'Email',         key: 'email' },
+  { label: 'Gender',        key: 'gender' },
+  { label: 'IP Address',    key: 'ip_address' },
+  { label: 'Last Activity', key: 'lastActivity', render: fmt },
+  { label: 'Member Since',  key: 'createdAt', render: fmt },
+  { label: 'Last Updated',  key: 'updatedAt', render: fmt },
 ]
 
 export default function UserDetailModal({ user, onClose }) {
