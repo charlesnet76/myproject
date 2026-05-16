@@ -31,6 +31,21 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.post("/bulk", async (req, res) => {
+  const { users } = req.body;
+  if (!Array.isArray(users)) return res.status(400).json({ error: "users must be an array" });
+  let imported = 0, skipped = 0;
+  for (const u of users) {
+    try {
+      await User.create(u);
+      imported++;
+    } catch {
+      skipped++;
+    }
+  }
+  res.status(201).json({ imported, skipped });
+});
+
 router.put("/:id", async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, req.body, {
