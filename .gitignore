@@ -5,3 +5,4 @@ dist-ssr
 venv
 *.log
 .DS_Store
+.env
