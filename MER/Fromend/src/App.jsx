@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
 import AddUserModal from './components/AddUserModal'
 import UserDetailModal from './components/UserDetailModal'
+import ToastContainer from './components/Toast'
 import './App.css'
 
 function timeAgo(dateStr) {
@@ -124,6 +125,13 @@ export default function App() {
   const [showModal, setShowModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
+  const [toasts, setToasts] = useState([])
+
+  const addToast = (message, type = 'success') => {
+    const id = Date.now()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+  const removeToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id))
 
   const handleSelectUser = async (user) => {
     setSelectedUser(user)
@@ -148,14 +156,25 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [])
 
-  const handleAdd = (user) => setUsers((prev) => [user, ...prev])
+  const handleAdd = (user) => {
+    setUsers((prev) => [user, ...prev])
+    addToast(`${user.first_name} ${user.last_name} added`)
+  }
+
+  const handleUpdate = (updated) => {
+    setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u)))
+    setSelectedUser(updated)
+    addToast(`${updated.first_name} ${updated.last_name} updated`)
+  }
 
   const handleDelete = async (id) => {
     try {
       await fetch(`/api/users/${id}`, { method: 'DELETE' })
+      const deleted = users.find((u) => u._id === id)
       setUsers((prev) => prev.filter((u) => u._id !== id))
+      addToast(`${deleted?.first_name ?? 'User'} ${deleted?.last_name ?? ''} deleted`)
     } catch {
-      alert('Failed to delete user.')
+      addToast('Failed to delete user', 'error')
     } finally {
       setConfirmDelete(null)
     }
@@ -289,8 +308,14 @@ export default function App() {
       )}
 
       {selectedUser && (
-        <UserDetailModal user={selectedUser} onClose={() => setSelectedUser(null)} />
+        <UserDetailModal
+          user={selectedUser}
+          onClose={() => setSelectedUser(null)}
+          onUpdate={handleUpdate}
+        />
       )}
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   )
 }
