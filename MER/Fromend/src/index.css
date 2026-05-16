@@ -52,6 +52,11 @@
 
 body {
   margin: 0;
+  background: #f5f5f7;
+}
+
+@media (prefers-color-scheme: dark) {
+  body { background: #0f1014; }
 }
 
 #root {
@@ -66,13 +71,9 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+  font-size: 28px;
+  letter-spacing: -0.5px;
+  margin: 0;
 }
 h2 {
   font-size: 24px;
