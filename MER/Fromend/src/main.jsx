@@ -5,7 +5,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import App from './App.jsx'
 import LoginPage from './pages/LoginPage.jsx'
-import RegisterPage from './pages/RegisterPage.jsx'
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 import './index.css'
@@ -26,7 +25,7 @@ function Root() {
       <AuthProvider>
         <Routes>
           <Route path="/login"            element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/register"         element={<PublicRoute><RegisterPage /></PublicRoute>} />
+          <Route path="/register"         element={<Navigate to="/login" replace />} />
           <Route path="/forgot-password"  element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/"                 element={<ProtectedRoute><App /></ProtectedRoute>} />

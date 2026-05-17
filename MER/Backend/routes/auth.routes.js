@@ -10,7 +10,7 @@ const router = express.Router();
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-router.post("/register", async (req, res) => {
+router.post("/register", protect, async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (await Admin.findOne({ email }))
