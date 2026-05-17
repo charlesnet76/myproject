@@ -6,22 +6,26 @@ on:
     branches: [master]
     types: [completed]
 
-# Only one production deploy at a time
+# Only one production deploy at a time — never cancel in-progress
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
-  # ── Gate: only run if CI passed ────────────
+  # ── Gate ───────────────────────────────────
   check-ci:
     name: Check CI Result
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
     outputs:
       sha: ${{ github.event.workflow_run.head_sha }}
+      short_sha: ${{ steps.short.outputs.sha }}
     steps:
-      - name: CI passed — proceeding with deploy
-        run: echo "SHA=${{ github.event.workflow_run.head_sha }}"
+      - name: Set short SHA
+        id: short
+        run: echo "sha=${SHA::7}" >> $GITHUB_OUTPUT
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
 
   # ── Deploy backend → Railway ───────────────
   deploy-backend:
@@ -29,8 +33,8 @@ jobs:
     needs: check-ci
     runs-on: ubuntu-latest
     environment:
-      name: production
-      url: https://your-backend.railway.app
+      name: production           # ← must match environment name in GitHub Settings
+      url: ${{ vars.BACKEND_URL }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,11 +49,17 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      - name: Health check
+      - name: Health check (waits up to 60s for Railway to boot)
         run: |
-          sleep 20
-          curl --fail --retry 5 --retry-delay 5 \
-            https://your-backend.railway.app/api/ping
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.BACKEND_URL }}/api/ping)
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed ✅"; exit 0
+            fi
+            echo "Attempt $i — status $STATUS, retrying in 5s…"
+            sleep 5
+          done
+          echo "Health check failed ❌"; exit 1
 
   # ── Deploy frontend → Vercel ───────────────
   deploy-frontend:
@@ -57,15 +67,16 @@ jobs:
     needs: check-ci
     runs-on: ubuntu-latest
     environment:
-      name: production
-      url: https://your-frontend.vercel.app
+      name: production           # ← same environment — both jobs require approval
+      url: ${{ vars.FRONTEND_URL }}
+    outputs:
+      deploy_url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.check-ci.outputs.sha }}
 
-      # Download the dist built by CI (avoids rebuilding)
-      - name: Download dist artifact
+      - name: Download dist artifact from CI
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist-${{ needs.check-ci.outputs.sha }}
@@ -76,7 +87,7 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Pull Vercel settings
+      - name: Pull Vercel project settings
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: MER/Fromend
         env:
@@ -84,10 +95,11 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy prebuilt dist to Vercel
-        id: vercel-deploy
+        id: deploy
         run: |
           URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $URL"
         working-directory: MER/Fromend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -96,15 +108,22 @@ jobs:
   # ── Summary ────────────────────────────────
   summary:
     name: Deploy Summary
-    needs: [deploy-backend, deploy-frontend]
+    needs: [check-ci, deploy-backend, deploy-frontend]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Write job summary
+      - name: Write summary
         run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Service  | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend  | ${{ needs.deploy-backend.result == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${{ needs.deploy-frontend.result == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit   | \`${{ github.event.workflow_run.head_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          BACKEND="${{ needs.deploy-backend.result }}"
+          FRONTEND="${{ needs.deploy-frontend.result }}"
+          B_ICON=$([[ "$BACKEND"  == "success" ]] && echo "✅" || echo "❌")
+          F_ICON=$([[ "$FRONTEND" == "success" ]] && echo "✅" || echo "❌")
+
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## 🚀 Production Deploy — \`${{ needs.check-ci.outputs.short_sha }}\`
+
+          | Service  | Result   | URL |
+          |----------|----------|-----|
+          | Backend  | $B_ICON $BACKEND  | ${{ vars.BACKEND_URL }} |
+          | Frontend | $F_ICON $FRONTEND | ${{ vars.FRONTEND_URL }} |
+          EOF

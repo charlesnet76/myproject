@@ -12,6 +12,9 @@ jobs:
   preview:
     name: Deploy Preview → Vercel
     runs-on: ubuntu-latest
+    environment:
+      name: preview              # ← no protection rules — auto-deploys
+      url: ${{ steps.deploy.outputs.url }}
     permissions:
       pull-requests: write  # needed to comment on the PR
     defaults:
