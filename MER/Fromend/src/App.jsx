@@ -167,9 +167,6 @@ export default function App() {
     return () => clearTimeout(t)
   }, [searchInput])
 
-  // Reset page when filter/sort changes
-  useEffect(() => { setPage(1) }, [genderFilter, sortIdx])
-
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     const { sort, order } = SORT_OPTIONS[sortIdx]
@@ -192,6 +189,7 @@ export default function App() {
     }
   }, [page, search, genderFilter, sortIdx])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
   const addToast = (message, type = 'success') => {
@@ -290,10 +288,10 @@ export default function App() {
           </div>
           <div className="filter-pills">
             {GENDERS.map(g => (
-              <button key={g} className={`filter-pill ${genderFilter === g ? 'active' : ''}`} onClick={() => setGenderFilter(g)}>{g}</button>
+              <button key={g} className={`filter-pill ${genderFilter === g ? 'active' : ''}`} onClick={() => { setGenderFilter(g); setPage(1) }}>{g}</button>
             ))}
           </div>
-          <select className="sort-select" value={sortIdx} onChange={e => setSortIdx(Number(e.target.value))}>
+          <select className="sort-select" value={sortIdx} onChange={e => { setSortIdx(Number(e.target.value)); setPage(1) }}>
             {SORT_OPTIONS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
           </select>
           <button className="btn-import" onClick={() => csvInputRef.current?.click()} disabled={importing}>

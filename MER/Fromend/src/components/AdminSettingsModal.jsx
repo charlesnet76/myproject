@@ -21,6 +21,7 @@ export default function AdminSettingsModal({ onClose, onToast }) {
 
   useEffect(() => {
     if (tab === 'admins') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadingAdmins(true)
       apiFetch('/api/auth/admins')
         .then(r => r.json())
