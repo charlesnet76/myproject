@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { apiFetch } from '../utils/api'
 
 function avatarUrl(first, last) {
@@ -26,6 +26,26 @@ const infoRows = [
 
 export default function UserDetailModal({ user, onClose, onUpdate }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const photoInputRef = useRef(null)
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0]; if (!file) return
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('photo', file)
+      const res = await apiFetch(`/api/users/${user._id}/photo`, { method: 'POST', body: form })
+      const updated = await res.json()
+      if (!res.ok) throw new Error(updated.error)
+      onUpdate(updated)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
   const [form, setForm] = useState({
     first_name: user.first_name,
     last_name:  user.last_name,
@@ -76,11 +96,15 @@ export default function UserDetailModal({ user, onClose, onUpdate }) {
       <div className="modal detail-modal" onClick={(e) => e.stopPropagation()}>
 
         <div className="detail-header">
-          <img
-            className="detail-avatar"
-            src={avatarUrl(user.first_name, user.last_name)}
-            alt={`${user.first_name} ${user.last_name}`}
-          />
+          <div className="detail-avatar-wrap" onClick={() => photoInputRef.current?.click()} title="Upload photo">
+            <img
+              className="detail-avatar"
+              src={user.photo || avatarUrl(user.first_name, user.last_name)}
+              alt={`${user.first_name} ${user.last_name}`}
+            />
+            <div className="avatar-upload-overlay">{uploading ? '…' : '📷'}</div>
+          </div>
+          <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
           <div className="detail-title">
             <h2>{user.first_name} {user.last_name}</h2>
             <span className={`pill ${user.gender?.toLowerCase()}`}>{user.gender || '—'}</span>

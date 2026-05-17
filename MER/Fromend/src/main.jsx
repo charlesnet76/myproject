@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import App from './App.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 import './index.css'
 
 function ProtectedRoute({ children }) {
@@ -22,9 +24,11 @@ function Root() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login"    element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-          <Route path="/"         element={<ProtectedRoute><App /></ProtectedRoute>} />
+          <Route path="/login"            element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/register"         element={<PublicRoute><RegisterPage /></PublicRoute>} />
+          <Route path="/forgot-password"  element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+          <Route path="/"                 element={<ProtectedRoute><App /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
-export default function Navbar({ isDark, onToggleTheme }) {
+export default function Navbar({ isDark, onToggleTheme, onSettings }) {
   const { admin, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -27,10 +27,10 @@ export default function Navbar({ isDark, onToggleTheme }) {
 
       <div className="navbar-right">
         {admin && (
-          <div className="admin-badge">
+          <button className="admin-badge" onClick={onSettings} title="Settings">
             <div className="admin-avatar">{admin.name?.[0]?.toUpperCase()}</div>
             <span className="admin-name">{admin.name}</span>
-          </div>
+          </button>
         )}
 
         <button className="theme-toggle" onClick={onToggleTheme} aria-label="Toggle theme">

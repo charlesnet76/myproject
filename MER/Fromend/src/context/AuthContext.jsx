@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext(null)
 
@@ -18,6 +18,16 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('admin')
     setAdmin(null)
   }
+
+  // Auto-logout when token expires (fired by apiFetch on 401)
+  useEffect(() => {
+    const handler = () => {
+      logout()
+      window.location.href = '/login'
+    }
+    window.addEventListener('auth:expired', handler)
+    return () => window.removeEventListener('auth:expired', handler)
+  }, [])
 
   return (
     <AuthContext.Provider value={{ admin, login, logout }}>

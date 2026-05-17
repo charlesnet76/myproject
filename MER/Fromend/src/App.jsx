@@ -1,11 +1,30 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { apiFetch } from './utils/api'
 import Navbar from './components/Navbar'
 import AddUserModal from './components/AddUserModal'
 import UserDetailModal from './components/UserDetailModal'
+import AdminSettingsModal from './components/AdminSettingsModal'
 import ToastContainer from './components/Toast'
 import StatsChart from './components/StatsChart'
 import './App.css'
+
+const LIMIT = 12
+const GENDERS = ['All', 'Male', 'Female', 'Other']
+const SORT_OPTIONS = [
+  { label: 'Newest first',   sort: 'createdAt',   order: 'desc' },
+  { label: 'Oldest first',   sort: 'createdAt',   order: 'asc'  },
+  { label: 'Name A → Z',    sort: 'first_name',   order: 'asc'  },
+  { label: 'Name Z → A',    sort: 'first_name',   order: 'desc' },
+  { label: 'Email A → Z',   sort: 'email',        order: 'asc'  },
+  { label: 'Last active',   sort: 'lastActivity', order: 'desc' },
+]
+const STAT_COLORS = { Total: 'var(--accent)', Male: '#3b82f6', Female: '#ec4899', Other: '#8b5cf6' }
+const STAT_ICONS = {
+  Total: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  Male:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="10" cy="14" r="6"/><path d="m16 8 4-4"/><path d="M20 4h-4v4"/></svg>,
+  Female:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M12 14v8"/><path d="M9 19h6"/></svg>,
+  Other: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>,
+}
 
 function timeAgo(dateStr) {
   if (!dateStr) return 'Never'
@@ -25,22 +44,10 @@ function avatarUrl(first, last) {
   return `https://api.dicebear.com/9.x/initials/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&fontFamily=Helvetica`
 }
 
-const GENDERS = ['All', 'Male', 'Female', 'Other']
-const STAT_COLORS = { Total: 'var(--accent)', Male: '#3b82f6', Female: '#ec4899', Other: '#8b5cf6' }
-
-const STAT_ICONS = {
-  Total: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  Male:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="10" cy="14" r="6"/><path d="m16 8 4-4"/><path d="M20 4h-4v4"/></svg>,
-  Female:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M12 14v8"/><path d="M9 19h6"/></svg>,
-  Other: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>,
-}
-
 function StatCard({ label, value, color }) {
   return (
     <div className="stat-card">
-      <div className="stat-icon" style={{ color, background: `color-mix(in srgb, ${color} 12%, transparent)` }}>
-        {STAT_ICONS[label]}
-      </div>
+      <div className="stat-icon" style={{ color, background: `color-mix(in srgb, ${color} 12%, transparent)` }}>{STAT_ICONS[label]}</div>
       <div className="stat-body">
         <span className="stat-value">{value}</span>
         <span className="stat-label">{label}</span>
@@ -54,7 +61,7 @@ function UserCard({ user, confirmDelete, onDeleteClick, onDeleteConfirm, onDelet
   return (
     <div className={`user-card ${isConfirming ? 'confirming' : ''}`} onClick={() => onSelect(user)} role="button" style={{ cursor: 'pointer' }}>
       <div className="card-top">
-        <img className="card-avatar" src={avatarUrl(user.first_name, user.last_name)} alt={`${user.first_name} ${user.last_name}`} />
+        <img className="card-avatar" src={user.photo || avatarUrl(user.first_name, user.last_name)} alt={`${user.first_name} ${user.last_name}`} />
       </div>
       <div className="card-body">
         <div className="card-name">{user.first_name} {user.last_name}</div>
@@ -71,7 +78,7 @@ function UserCard({ user, confirmDelete, onDeleteClick, onDeleteConfirm, onDelet
           <span>{timeAgo(user.lastActivity)}</span>
         </div>
       </div>
-      <div className="card-footer" onClick={(e) => e.stopPropagation()}>
+      <div className="card-footer" onClick={e => e.stopPropagation()}>
         {isConfirming ? (
           <div className="confirm-row">
             <button className="btn-danger" onClick={() => onDeleteConfirm(user._id)}>Confirm</button>
@@ -88,6 +95,38 @@ function UserCard({ user, confirmDelete, onDeleteClick, onDeleteConfirm, onDelet
   )
 }
 
+function UserCardSkeleton() {
+  return (
+    <div className="user-card skeleton-card">
+      <div className="card-top"><div className="skeleton skel-avatar" /></div>
+      <div className="card-body">
+        <div className="skeleton skel-line w70" />
+        <div className="skeleton skel-line w90" />
+        <div className="skeleton skel-line w50" />
+        <div className="skeleton skel-line w60" />
+      </div>
+      <div className="card-footer"><div className="skeleton skel-line w40" /></div>
+    </div>
+  )
+}
+
+function Pagination({ page, pages, total, onPage }) {
+  if (pages <= 1) return null
+  return (
+    <div className="pagination">
+      <button className="btn-secondary pag-btn" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m15 18-6-6 6-6"/></svg>
+        Prev
+      </button>
+      <span className="pag-info">Page <strong>{page}</strong> of <strong>{pages}</strong> · {total} users</span>
+      <button className="btn-secondary pag-btn" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+        Next
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+    </div>
+  )
+}
+
 function getInitialDark() {
   const saved = localStorage.getItem('theme')
   if (saved === 'dark') return true
@@ -97,105 +136,129 @@ function getInitialDark() {
 
 export default function App() {
   const [users, setUsers] = useState([])
+  const [stats, setStats] = useState({ total: 0, male: 0, female: 0, other: 0 })
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pages, setPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [genderFilter, setGenderFilter] = useState('All')
+  const [sortIdx, setSortIdx] = useState(0)
   const [showModal, setShowModal] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
   const [toasts, setToasts] = useState([])
   const [isDark, setIsDark] = useState(getInitialDark)
   const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const csvInputRef = useRef(null)
 
-  // Apply theme to <html>
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
     localStorage.setItem('theme', isDark ? 'dark' : 'light')
   }, [isDark])
 
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1) }, 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  // Reset page when filter/sort changes
+  useEffect(() => { setPage(1) }, [genderFilter, sortIdx])
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true)
+    const { sort, order } = SORT_OPTIONS[sortIdx]
+    const params = new URLSearchParams({ page, limit: LIMIT, sort, order })
+    if (search) params.set('search', search)
+    if (genderFilter !== 'All') params.set('gender', genderFilter)
+    try {
+      const res = await apiFetch(`/api/users?${params}`)
+      if (!res.ok) throw new Error(`Server error: ${res.status}`)
+      const data = await res.json()
+      setUsers(data.users)
+      setTotal(data.total)
+      setPages(data.pages)
+      setStats(data.stats)
+      setError(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [page, search, genderFilter, sortIdx])
+
+  useEffect(() => { fetchUsers() }, [fetchUsers])
+
   const addToast = (message, type = 'success') => {
     const id = Date.now()
-    setToasts((prev) => [...prev, { id, message, type }])
+    setToasts(prev => [...prev, { id, message, type }])
   }
-  const removeToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id))
-
-  useEffect(() => {
-    apiFetch('/api/users')
-      .then((res) => { if (!res.ok) throw new Error(`Server error: ${res.status}`); return res.json() })
-      .then(setUsers)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
+  const removeToast = id => setToasts(prev => prev.filter(t => t.id !== id))
 
   const handleSelectUser = async (user) => {
     setSelectedUser(user)
     try {
       const res = await apiFetch(`/api/users/${user._id}/activity`, { method: 'PATCH' })
       const updated = await res.json()
-      setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u)))
+      setUsers(prev => prev.map(u => u._id === updated._id ? updated : u))
       setSelectedUser(updated)
     } catch { /* best-effort */ }
   }
 
-  const handleAdd = (user) => { setUsers((prev) => [user, ...prev]); addToast(`${user.first_name} ${user.last_name} added`) }
-  const handleUpdate = (updated) => { setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u))); setSelectedUser(updated); addToast(`${updated.first_name} ${updated.last_name} updated`) }
-
+  const handleAdd = () => { fetchUsers(); addToast('User added') }
+  const handleUpdate = (updated) => { setUsers(prev => prev.map(u => u._id === updated._id ? updated : u)); setSelectedUser(updated); addToast(`${updated.first_name} ${updated.last_name} updated`) }
   const handleDelete = async (id) => {
     try {
       await apiFetch(`/api/users/${id}`, { method: 'DELETE' })
-      const deleted = users.find((u) => u._id === id)
-      setUsers((prev) => prev.filter((u) => u._id !== id))
+      const deleted = users.find(u => u._id === id)
       addToast(`${deleted?.first_name ?? 'User'} ${deleted?.last_name ?? ''} deleted`)
+      fetchUsers()
     } catch { addToast('Failed to delete user', 'error') }
     finally { setConfirmDelete(null) }
   }
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const res = await apiFetch('/api/users/export')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = 'aerobase-users.csv'; a.click()
+      URL.revokeObjectURL(url)
+      addToast('Users exported to CSV')
+    } catch { addToast('Export failed', 'error') }
+    finally { setExporting(false) }
+  }
+
   const handleCsvImport = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+    const file = e.target.files[0]; if (!file) return
     setImporting(true)
     try {
       const text = await file.text()
       const lines = text.trim().split('\n')
-      const headers = lines[0].split(',').map((h) => h.trim())
-      const parsed = lines.slice(1).map((line) => {
-        const vals = line.split(',')
-        const obj = {}
+      const headers = lines[0].split(',').map(h => h.trim())
+      const parsed = lines.slice(1).map(line => {
+        const vals = line.split(','); const obj = {}
         headers.forEach((h, i) => { obj[h] = vals[i]?.trim() })
         return { first_name: obj.first_name, last_name: obj.last_name, email: obj.email, gender: obj.gender, ip_address: obj.ip_address }
-      }).filter((u) => u.email)
-
-      const res = await apiFetch('/api/users/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ users: parsed }),
-      })
+      }).filter(u => u.email)
+      const res = await apiFetch('/api/users/bulk', { method: 'POST', body: JSON.stringify({ users: parsed }) })
       const { imported, skipped } = await res.json()
-      addToast(`Imported ${imported} users${skipped ? `, ${skipped} skipped (duplicates)` : ''}`)
-      const updated = await apiFetch('/api/users').then((r) => r.json())
-      setUsers(updated)
+      addToast(`Imported ${imported} users${skipped ? `, ${skipped} skipped` : ''}`)
+      setPage(1); fetchUsers()
     } catch { addToast('CSV import failed', 'error') }
     finally { setImporting(false); e.target.value = '' }
   }
 
-  const filtered = users.filter((u) => {
-    const name = `${u.first_name} ${u.last_name}`.toLowerCase()
-    const q = search.toLowerCase()
-    return (name.includes(q) || u.email.toLowerCase().includes(q)) && (genderFilter === 'All' || u.gender === genderFilter)
-  })
-
-  const stats = {
-    Total:  users.length,
-    Male:   users.filter((u) => u.gender === 'Male').length,
-    Female: users.filter((u) => u.gender === 'Female').length,
-    Other:  users.filter((u) => u.gender === 'Other').length,
-  }
-
   return (
     <>
-      <Navbar isDark={isDark} onToggleTheme={() => setIsDark((d) => !d)} />
+      <Navbar isDark={isDark} onToggleTheme={() => setIsDark(d => !d)} onSettings={() => setShowSettings(true)} />
       <main className="main">
 
         <div className="page-header">
@@ -212,64 +275,78 @@ export default function App() {
         {!loading && !error && (
           <div className="stats-section">
             <div className="stats-cards">
-              {Object.entries(stats).map(([label, value]) => (
+              {Object.entries({ Total: stats.total, Male: stats.male, Female: stats.female, Other: stats.other }).map(([label, value]) => (
                 <StatCard key={label} label={label} value={value} color={STAT_COLORS[label]} />
               ))}
             </div>
-            <StatsChart stats={stats} />
+            <StatsChart stats={{ Male: stats.male, Female: stats.female, Other: stats.other }} />
           </div>
         )}
 
         <div className="toolbar">
           <div className="search-wrap">
             <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
-            <input className="search" type="search" placeholder="Search by name or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="search" type="search" placeholder="Search by name or email…" value={searchInput} onChange={e => setSearchInput(e.target.value)} />
           </div>
           <div className="filter-pills">
-            {GENDERS.map((g) => (
+            {GENDERS.map(g => (
               <button key={g} className={`filter-pill ${genderFilter === g ? 'active' : ''}`} onClick={() => setGenderFilter(g)}>{g}</button>
             ))}
           </div>
+          <select className="sort-select" value={sortIdx} onChange={e => setSortIdx(Number(e.target.value))}>
+            {SORT_OPTIONS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+          </select>
           <button className="btn-import" onClick={() => csvInputRef.current?.click()} disabled={importing}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             {importing ? 'Importing…' : 'Import CSV'}
+          </button>
+          <button className="btn-import" onClick={handleExport} disabled={exporting}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
           <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvImport} />
         </div>
 
         {!loading && !error && (
-          <p className="results-count">Showing <strong>{filtered.length}</strong> of <strong>{users.length}</strong> users</p>
+          <p className="results-count">Showing <strong>{users.length}</strong> of <strong>{total}</strong> {search || genderFilter !== 'All' ? 'matching ' : ''}users</p>
         )}
 
-        {loading && <div className="state-wrap"><div className="spinner" /><p>Loading users…</p></div>}
-        {error   && <p className="state error">{error}</p>}
+        {loading && (
+          <div className="card-grid">
+            {Array.from({ length: LIMIT }).map((_, i) => <UserCardSkeleton key={i} />)}
+          </div>
+        )}
+        {error && <p className="state error">{error}</p>}
 
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && users.length === 0 && (
           <div className="empty-state">
             <div className="empty-icon">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <p className="empty-title">No users found</p>
             <p className="empty-sub">Try adjusting your search or filters</p>
-            {(search || genderFilter !== 'All') && (
-              <button className="btn-secondary" onClick={() => { setSearch(''); setGenderFilter('All') }}>Clear filters</button>
+            {(searchInput || genderFilter !== 'All') && (
+              <button className="btn-secondary" onClick={() => { setSearchInput(''); setGenderFilter('All') }}>Clear filters</button>
             )}
           </div>
         )}
 
-        {filtered.length > 0 && (
+        {users.length > 0 && (
           <div className="card-grid">
-            {filtered.map((user) => (
+            {users.map(user => (
               <UserCard key={user._id} user={user} confirmDelete={confirmDelete}
                 onDeleteClick={setConfirmDelete} onDeleteConfirm={handleDelete}
                 onDeleteCancel={() => setConfirmDelete(null)} onSelect={handleSelectUser} />
             ))}
           </div>
         )}
+
+        <Pagination page={page} pages={pages} total={total} onPage={setPage} />
       </main>
 
       {showModal    && <AddUserModal onClose={() => setShowModal(false)} onAdd={handleAdd} />}
       {selectedUser && <UserDetailModal user={selectedUser} onClose={() => setSelectedUser(null)} onUpdate={handleUpdate} />}
+      {showSettings && <AdminSettingsModal onClose={() => setShowSettings(false)} onToast={addToast} />}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   )
