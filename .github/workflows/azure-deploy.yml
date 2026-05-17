@@ -11,12 +11,13 @@ on:
 #   AZURE_CLIENT_ID          — service principal client ID (OIDC)
 #   AZURE_TENANT_ID          — Azure AD tenant ID
 #   AZURE_SUBSCRIPTION_ID    — Azure subscription ID
-#   AZURE_REGISTRY           — ACR login server (e.g. aerobaseregistry.azurecr.io)
 #   AZURE_STATIC_WEB_APP_TOKEN — from az staticwebapp secrets list
 #   MONGO_URI, JWT_SECRET    — passed to Container App at deploy time
 #   (CLOUDINARY_*, SENDGRID_* if used)
 #
 # Required GitHub Variables (Settings → Variables → Actions):
+#   AZURE_REGISTRY           — ACR login server (e.g. aerobaseregistry.azurecr.io)
+#   AZURE_REGISTRY_NAME      — ACR name only (e.g. aerobaseregistry)
 #   AZURE_RESOURCE_GROUP     — e.g. aerobase-rg
 #   AZURE_CONTAINER_APP      — e.g. aerobase-backend
 #   AZURE_BACKEND_URL        — https://<fqdn> of the Container App
@@ -69,13 +70,12 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Login to ACR
-        run: az acr login --name ${{ secrets.AZURE_REGISTRY }}
+        run: az acr login --name ${{ vars.AZURE_REGISTRY_NAME }}
 
       - name: Build & push backend image
         id: meta
-        env:
-          IMAGE: ${{ secrets.AZURE_REGISTRY }}/backend:${{ needs.check-ci.outputs.sha }}
         run: |
+          IMAGE="${{ vars.AZURE_REGISTRY }}/backend:${{ needs.check-ci.outputs.sha }}"
           docker build -t $IMAGE ./MER/Backend
           docker push $IMAGE
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
@@ -99,7 +99,7 @@ jobs:
       - name: Deploy to Container Apps
         uses: azure/container-apps-deploy-action@v2
         with:
-          acrName: ${{ secrets.AZURE_REGISTRY }}
+          acrName: ${{ vars.AZURE_REGISTRY_NAME }}
           containerAppName: ${{ vars.AZURE_CONTAINER_APP }}
           resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
           imageToDeploy: ${{ needs.push-image.outputs.image }}
