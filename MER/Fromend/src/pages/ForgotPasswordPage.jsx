@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { apiFetch } from '../utils/api'
 import './AuthPage.css'
 
 export default function ForgotPasswordPage() {
@@ -12,9 +13,8 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setLoading(true); setError(null)
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await apiFetch('/api/auth/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
       const data = await res.json()

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { apiFetch } from '../utils/api'
 import './AuthPage.css'
 
 export default function ResetPasswordPage() {
@@ -15,9 +16,8 @@ export default function ResetPasswordPage() {
     if (form.newPassword !== form.confirm) return setError('Passwords do not match')
     setLoading(true); setError(null)
     try {
-      const res = await fetch(`/api/auth/reset-password/${token}`, {
+      const res = await apiFetch(`/api/auth/reset-password/${token}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword: form.newPassword }),
       })
       const data = await res.json()

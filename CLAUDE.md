@@ -93,7 +93,7 @@ SENDGRID_FROM_EMAIL=...
 
 **Auth** (`context/AuthContext.jsx`): stores admin + JWT in `localStorage`. `useAuth()` hook exposes `admin`, `login()`, `logout()`.
 
-**API calls** (`utils/api.js`): `apiFetch()` wraps `fetch` and automatically attaches `Authorization: Bearer <token>`. All components use `apiFetch` instead of raw `fetch` (exception: forgot/reset password pages, which use raw `fetch` because no token exists yet).
+**API calls** (`utils/api.js`): `apiFetch()` wraps `fetch`, automatically attaches `Authorization: Bearer <token>`, and prefixes the URL with `VITE_API_BASE_URL` (set at build time to the backend URL in production). All components and pages use `apiFetch` — including auth pages where no token exists yet.
 
 **Key components:**
 - `pages/LoginPage.jsx` / `RegisterPage.jsx` — public auth pages
