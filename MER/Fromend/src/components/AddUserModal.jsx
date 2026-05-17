@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiFetch } from '../utils/api'
 
 function AddUserModal({ onClose, onAdd }) {
   const [form, setForm] = useState({
@@ -14,7 +15,7 @@ function AddUserModal({ onClose, onAdd }) {
     setSubmitting(true)
     setError(null)
     try {
-      const res = await fetch('/api/users', {
+      const res = await apiFetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),

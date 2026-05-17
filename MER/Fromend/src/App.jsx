@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { apiFetch } from './utils/api'
 import Navbar from './components/Navbar'
 import AddUserModal from './components/AddUserModal'
 import UserDetailModal from './components/UserDetailModal'
@@ -121,7 +122,7 @@ export default function App() {
   const removeToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id))
 
   useEffect(() => {
-    fetch('/api/users')
+    apiFetch('/api/users')
       .then((res) => { if (!res.ok) throw new Error(`Server error: ${res.status}`); return res.json() })
       .then(setUsers)
       .catch((err) => setError(err.message))
@@ -131,7 +132,7 @@ export default function App() {
   const handleSelectUser = async (user) => {
     setSelectedUser(user)
     try {
-      const res = await fetch(`/api/users/${user._id}/activity`, { method: 'PATCH' })
+      const res = await apiFetch(`/api/users/${user._id}/activity`, { method: 'PATCH' })
       const updated = await res.json()
       setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u)))
       setSelectedUser(updated)
@@ -143,7 +144,7 @@ export default function App() {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`/api/users/${id}`, { method: 'DELETE' })
+      await apiFetch(`/api/users/${id}`, { method: 'DELETE' })
       const deleted = users.find((u) => u._id === id)
       setUsers((prev) => prev.filter((u) => u._id !== id))
       addToast(`${deleted?.first_name ?? 'User'} ${deleted?.last_name ?? ''} deleted`)
@@ -166,14 +167,14 @@ export default function App() {
         return { first_name: obj.first_name, last_name: obj.last_name, email: obj.email, gender: obj.gender, ip_address: obj.ip_address }
       }).filter((u) => u.email)
 
-      const res = await fetch('/api/users/bulk', {
+      const res = await apiFetch('/api/users/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ users: parsed }),
       })
       const { imported, skipped } = await res.json()
       addToast(`Imported ${imported} users${skipped ? `, ${skipped} skipped (duplicates)` : ''}`)
-      const updated = await fetch('/api/users').then((r) => r.json())
+      const updated = await apiFetch('/api/users').then((r) => r.json())
       setUsers(updated)
     } catch { addToast('CSV import failed', 'error') }
     finally { setImporting(false); e.target.value = '' }

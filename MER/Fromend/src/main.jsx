@@ -1,10 +1,36 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import App from './App.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import RegisterPage from './pages/RegisterPage.jsx'
+import './index.css'
+
+function ProtectedRoute({ children }) {
+  const { admin } = useAuth()
+  return admin ? children : <Navigate to="/login" replace />
+}
+
+function PublicRoute({ children }) {
+  const { admin } = useAuth()
+  return admin ? <Navigate to="/" replace /> : children
+}
+
+function Root() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login"    element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+          <Route path="/"         element={<ProtectedRoute><App /></ProtectedRoute>} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <StrictMode><Root /></StrictMode>
 )

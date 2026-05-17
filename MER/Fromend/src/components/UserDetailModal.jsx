@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiFetch } from '../utils/api'
 
 function avatarUrl(first, last) {
   const seed = encodeURIComponent(`${first} ${last}`)
@@ -42,7 +43,7 @@ export default function UserDetailModal({ user, onClose, onUpdate }) {
     setSaving(true)
     setError(null)
     try {
-      const res = await fetch(`/api/users/${user._id}`, {
+      const res = await apiFetch(`/api/users/${user._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
