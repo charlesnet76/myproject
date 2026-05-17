@@ -23,7 +23,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-app.get("/api/ping", (req, res) => res.json({ message: "pong" }));
+app.get("/api/ping", (req, res) => res.json({ message: "pong", version: "1.0.0" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
