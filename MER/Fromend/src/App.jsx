@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from './utils/api'
 import Navbar from './components/Navbar'
 import AddUserModal from './components/AddUserModal'
@@ -56,11 +57,12 @@ function StatCard({ label, value, color }) {
   )
 }
 
-function UserCard({ user, confirmDelete, onDeleteClick, onDeleteConfirm, onDeleteCancel, onSelect }) {
+function UserCard({ user, confirmDelete, onDeleteClick, onDeleteConfirm, onDeleteCancel, onSelect, isSelected, onToggleSelect }) {
   const isConfirming = confirmDelete === user._id
   return (
-    <div className={`user-card ${isConfirming ? 'confirming' : ''}`} onClick={() => onSelect(user)} role="button" style={{ cursor: 'pointer' }}>
+    <div className={`user-card ${isConfirming ? 'confirming' : ''} ${isSelected ? 'selected' : ''}`} onClick={() => onSelect(user)} role="button" style={{ cursor: 'pointer' }}>
       <div className="card-top">
+        <input type="checkbox" className="card-checkbox" checked={isSelected} onChange={() => onToggleSelect(user._id)} onClick={e => e.stopPropagation()} />
         <img className="card-avatar" src={user.photo || avatarUrl(user.first_name, user.last_name)} alt={`${user.first_name} ${user.last_name}`} />
       </div>
       <div className="card-body">
@@ -135,17 +137,21 @@ function getInitialDark() {
 }
 
 export default function App() {
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [users, setUsers] = useState([])
   const [stats, setStats] = useState({ total: 0, male: 0, female: 0, other: 0 })
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [genderFilter, setGenderFilter] = useState('All')
-  const [sortIdx, setSortIdx] = useState(0)
+
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('q') || '')
+  const [search, setSearch] = useState(() => searchParams.get('q') || '')
+  const [genderFilter, setGenderFilter] = useState(() => searchParams.get('gender') || 'All')
+  const [sortIdx, setSortIdx] = useState(() => { const s = Number(searchParams.get('sort')); return s >= 0 && s < SORT_OPTIONS.length ? s : 0 })
+  const [page, setPage] = useState(() => { const p = Number(searchParams.get('page')); return p >= 1 ? p : 1 })
+
   const [showModal, setShowModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -154,12 +160,25 @@ export default function App() {
   const [isDark, setIsDark] = useState(getInitialDark)
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [confirmBulk, setConfirmBulk] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const csvInputRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
     localStorage.setItem('theme', isDark ? 'dark' : 'light')
   }, [isDark])
+
+  // Sync filters to URL
+  useEffect(() => {
+    const params = {}
+    if (search) params.q = search
+    if (genderFilter !== 'All') params.gender = genderFilter
+    if (sortIdx !== 0) params.sort = String(sortIdx)
+    if (page !== 1) params.page = String(page)
+    setSearchParams(params, { replace: true })
+  }, [search, genderFilter, sortIdx, page, setSearchParams])
 
   // Debounce search input
   useEffect(() => {
@@ -218,6 +237,21 @@ export default function App() {
       fetchUsers()
     } catch { addToast('Failed to delete user', 'error') }
     finally { setConfirmDelete(null) }
+  }
+
+  const toggleSelect = (id) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const selectAll = () => setSelectedIds(new Set(users.map(u => u._id)))
+  const clearSelection = () => { setSelectedIds(new Set()); setConfirmBulk(false) }
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true)
+    try {
+      await Promise.all([...selectedIds].map(id => apiFetch(`/api/users/${id}`, { method: 'DELETE' })))
+      addToast(`${selectedIds.size} users deleted`)
+      clearSelection()
+      fetchUsers()
+    } catch { addToast('Bulk delete failed', 'error') }
+    finally { setBulkDeleting(false) }
   }
 
   const handleExport = async () => {
@@ -288,10 +322,10 @@ export default function App() {
           </div>
           <div className="filter-pills">
             {GENDERS.map(g => (
-              <button key={g} className={`filter-pill ${genderFilter === g ? 'active' : ''}`} onClick={() => { setGenderFilter(g); setPage(1) }}>{g}</button>
+              <button key={g} className={`filter-pill ${genderFilter === g ? 'active' : ''}`} onClick={() => { setGenderFilter(g); setPage(1); clearSelection() }}>{g}</button>
             ))}
           </div>
-          <select className="sort-select" value={sortIdx} onChange={e => { setSortIdx(Number(e.target.value)); setPage(1) }}>
+          <select className="sort-select" value={sortIdx} onChange={e => { setSortIdx(Number(e.target.value)); setPage(1); clearSelection() }}>
             {SORT_OPTIONS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
           </select>
           <button className="btn-import" onClick={() => csvInputRef.current?.click()} disabled={importing}>
@@ -304,6 +338,27 @@ export default function App() {
           </button>
           <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvImport} />
         </div>
+
+        {selectedIds.size > 0 && (
+          <div className="bulk-bar">
+            <span className="bulk-count">{selectedIds.size} selected</span>
+            <button className="btn-ghost btn-sm" onClick={selectAll}>Select page</button>
+            <button className="btn-ghost btn-sm" onClick={clearSelection}>Clear</button>
+            <div className="bulk-bar-sep" />
+            {confirmBulk ? (
+              <>
+                <span className="bulk-confirm-label">Delete {selectedIds.size} users?</span>
+                <button className="btn-danger btn-sm" onClick={handleBulkDelete} disabled={bulkDeleting}>{bulkDeleting ? 'Deleting…' : 'Confirm'}</button>
+                <button className="btn-ghost btn-sm" onClick={() => setConfirmBulk(false)}>Cancel</button>
+              </>
+            ) : (
+              <button className="btn-delete btn-sm" onClick={() => setConfirmBulk(true)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                Delete selected
+              </button>
+            )}
+          </div>
+        )}
 
         {!loading && !error && (
           <p className="results-count">Showing <strong>{users.length}</strong> of <strong>{total}</strong> {search || genderFilter !== 'All' ? 'matching ' : ''}users</p>
@@ -334,7 +389,8 @@ export default function App() {
             {users.map(user => (
               <UserCard key={user._id} user={user} confirmDelete={confirmDelete}
                 onDeleteClick={setConfirmDelete} onDeleteConfirm={handleDelete}
-                onDeleteCancel={() => setConfirmDelete(null)} onSelect={handleSelectUser} />
+                onDeleteCancel={() => setConfirmDelete(null)} onSelect={handleSelectUser}
+                isSelected={selectedIds.has(user._id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
         )}

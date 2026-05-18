@@ -875,3 +875,36 @@ input, select {
   .form-row { grid-template-columns: 1fr; }
   .chart-inner { flex-direction: column; align-items: center; }
 }
+
+/* ── Bulk action bar ── */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--accent);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.bulk-count { color: #fff; font-weight: 600; font-size: 0.875rem; margin-right: 4px; }
+.bulk-confirm-label { color: #fff; font-size: 0.875rem; font-weight: 500; }
+.bulk-bar-sep { flex: 1; }
+.btn-sm { padding: 5px 12px; font-size: 0.8rem; border-radius: 6px; }
+
+/* ── Card checkbox & selected state ── */
+.card-checkbox {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  z-index: 1;
+}
+.user-card { position: relative; }
+.user-card.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
