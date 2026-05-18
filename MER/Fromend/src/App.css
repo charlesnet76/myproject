@@ -712,24 +712,28 @@ input, select {
 
 /* ── Photo upload ── */
 .detail-avatar-wrap {
-  position: relative;
-  cursor: pointer;
-  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
-  &:hover .avatar-upload-overlay { opacity: 1; }
 }
-.avatar-upload-overlay {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.45);
+.avatar-upload-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  opacity: 0;
-  transition: opacity 0.2s;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
 }
+.avatar-upload-btn:hover:not(:disabled) { background: var(--hover); color: var(--text-1); }
+.avatar-upload-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ── Detail modal ── */
 .detail-modal { max-width: 500px; padding: 0; }
