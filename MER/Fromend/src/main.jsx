@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import App from './App.jsx'
+import LandingPage from './pages/LandingPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
@@ -16,7 +17,7 @@ function ProtectedRoute({ children }) {
 
 function PublicRoute({ children }) {
   const { admin } = useAuth()
-  return admin ? <Navigate to="/" replace /> : children
+  return admin ? <Navigate to="/dashboard" replace /> : children
 }
 
 function Root() {
@@ -24,11 +25,12 @@ function Root() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login"            element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/register"         element={<Navigate to="/login" replace />} />
-          <Route path="/forgot-password"  element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/"                      element={<LandingPage />} />
+          <Route path="/login"                 element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/register"              element={<Navigate to="/login" replace />} />
+          <Route path="/forgot-password"       element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          <Route path="/"                 element={<ProtectedRoute><App /></ProtectedRoute>} />
+          <Route path="/dashboard"             element={<ProtectedRoute><App /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
