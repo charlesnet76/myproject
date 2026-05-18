@@ -508,9 +508,9 @@
   font-weight: 600;
   letter-spacing: 0.2px;
 }
-.pill.male   { background: rgba(59,130,246,0.12); color: #3b82f6; }
-.pill.female { background: rgba(236,72,153,0.12); color: #ec4899; }
-.pill.other  { background: var(--accent-bg); color: var(--accent); }
+.pill.male   { background: rgba(99,102,241,0.1);  color: #6366f1; }
+.pill.female { background: rgba(236,72,153,0.1);  color: #ec4899; }
+.pill.other  { background: rgba(139,92,246,0.1);  color: #8b5cf6; }
 
 /* ── Skeleton loading ── */
 .skeleton {
@@ -835,9 +835,11 @@ input, select {
   color: #991b1b;
 }
 @media (prefers-color-scheme: dark) {
-  .toast-success { background: #052e16; border-color: #166534; color: #86efac; }
-  .toast-error   { background: #450a0a; border-color: #991b1b; color: #fca5a5; }
+  :root:not([data-theme="light"]) .toast-success { background: #0c1e2e; border-color: #1e40af; color: #93c5fd; }
+  :root:not([data-theme="light"]) .toast-error   { background: #1e0a0a; border-color: #991b1b; color: #fca5a5; }
 }
+:root[data-theme="dark"] .toast-success { background: #0c1e2e; border-color: #1e40af; color: #93c5fd; }
+:root[data-theme="dark"] .toast-error   { background: #1e0a0a; border-color: #991b1b; color: #fca5a5; }
 .toast-icon { display: flex; flex-shrink: 0; }
 .toast-message { flex: 1; }
 .toast-close {
