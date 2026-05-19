@@ -113,6 +113,7 @@ jobs:
             CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
             SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
             SENDGRID_FROM_EMAIL=${{ secrets.SENDGRID_FROM_EMAIL }}
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Health check
         run: |
