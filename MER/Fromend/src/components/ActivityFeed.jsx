@@ -36,6 +36,7 @@ export default function ActivityFeed({ refresh }) {
     finally { setLoading(false) }
   }, [])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (open) fetchLogs() }, [open, refresh, fetchLogs])
 
   return (

@@ -64,6 +64,7 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
   const [sendingEmail, setSendingEmail] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotesLoading(true)
     apiFetch(`/api/users/${user._id}/notes`)
       .then(r => r.json())
