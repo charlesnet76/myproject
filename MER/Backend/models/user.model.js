@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema(
     status:     { type: String, enum: ['Active', 'Inactive', 'Banned'], default: 'Active' },
     photo: { type: String, default: null },
     lastActivity: { type: Date, default: null },
+    tags:         [{ type: String }],
   },
   { timestamps: true }
 );

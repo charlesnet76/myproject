@@ -23,6 +23,9 @@ export default function Navbar({ isDark, onToggleTheme, onSettings }) {
       <div className="navbar-links">
         <Link to="/dashboard"  className={`nav-link ${location.pathname === '/dashboard'  ? 'active' : ''}`}>Users</Link>
         <Link to="/analytics"  className={`nav-link ${location.pathname === '/analytics'  ? 'active' : ''}`}>Analytics</Link>
+        <Link to="/pipeline"   className={`nav-link ${location.pathname === '/pipeline'   ? 'active' : ''}`}>Pipeline</Link>
+        <Link to="/tickets"    className={`nav-link ${location.pathname === '/tickets'    ? 'active' : ''}`}>Tickets</Link>
+        <Link to="/segments"   className={`nav-link ${location.pathname === '/segments'   ? 'active' : ''}`}>Segments</Link>
       </div>
 
       <div className="navbar-right">

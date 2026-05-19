@@ -206,6 +206,19 @@ router.delete("/:id/notes/:noteId", async (req, res) => {
   }
 });
 
+// ── Tags ──────────────────────────────────────────────────
+router.patch("/:id/tags", async (req, res) => {
+  try {
+    const { tags } = req.body;
+    if (!Array.isArray(tags)) return res.status(400).json({ error: "tags must be an array" });
+    const user = await User.findByIdAndUpdate(req.params.id, { tags }, { new: true });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Email ─────────────────────────────────────────────────
 router.post("/:id/email", async (req, res) => {
   try {

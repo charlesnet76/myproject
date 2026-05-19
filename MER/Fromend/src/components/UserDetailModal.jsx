@@ -58,6 +58,15 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
   const [newNote, setNewNote]     = useState('')
   const [addingNote, setAddingNote] = useState(false)
 
+  // Tags
+  const [tags, setTags] = useState(user.tags || [])
+  const [tagInput, setTagInput] = useState('')
+  const [savingTags, setSavingTags] = useState(false)
+
+  // AI score
+  const [aiScore, setAiScore] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
   // Email
   const [showEmail, setShowEmail] = useState(false)
   const [emailForm, setEmailForm] = useState({ subject: '', message: '' })
@@ -126,6 +135,41 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
       await apiFetch(`/api/users/${user._id}/notes/${noteId}`, { method: 'DELETE' })
       setNotes(prev => prev.filter(n => n._id !== noteId))
     } catch (err) { onToast?.(err.message, 'error') }
+  }
+
+  const handleAddTag = async () => {
+    const t = tagInput.trim().toLowerCase()
+    if (!t || tags.includes(t)) { setTagInput(''); return }
+    const next = [...tags, t]
+    setSavingTags(true)
+    try {
+      const res = await apiFetch(`/api/users/${user._id}/tags`, { method: 'PATCH', body: JSON.stringify({ tags: next }) })
+      const updated = await res.json()
+      if (!res.ok) throw new Error(updated.error)
+      setTags(next); setTagInput(''); onUpdate(updated)
+    } catch (err) { onToast?.(err.message, 'error') }
+    finally { setSavingTags(false) }
+  }
+
+  const handleRemoveTag = async (tag) => {
+    const next = tags.filter(t => t !== tag)
+    try {
+      const res = await apiFetch(`/api/users/${user._id}/tags`, { method: 'PATCH', body: JSON.stringify({ tags: next }) })
+      const updated = await res.json()
+      if (!res.ok) throw new Error(updated.error)
+      setTags(next); onUpdate(updated)
+    } catch (err) { onToast?.(err.message, 'error') }
+  }
+
+  const handleAiScore = async () => {
+    setAiLoading(true); setAiScore(null)
+    try {
+      const res = await apiFetch(`/api/ai/score/${user._id}`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setAiScore(data)
+    } catch (err) { onToast?.(err.message, 'error') }
+    finally { setAiLoading(false) }
   }
 
   const handleSendEmail = async (e) => {
@@ -246,6 +290,58 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
         {/* ── View mode ── */}
         {viewMode && (
           <>
+            {/* ── AI Score ── */}
+            <div className="ai-score-section">
+              <div className="ai-score-header">
+                <span className="notes-title">AI Lead Score</span>
+                <button className="btn-secondary btn-sm" onClick={handleAiScore} disabled={aiLoading}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  {aiLoading ? 'Scoring…' : aiScore ? 'Re-score' : 'Score with AI'}
+                </button>
+              </div>
+              {aiScore && (
+                <div className="ai-score-result">
+                  <div className="ai-score-badge" style={{ background: aiScore.score >= 7 ? '#10b981' : aiScore.score >= 4 ? '#f59e0b' : '#ef4444' }}>
+                    {aiScore.score}/10
+                  </div>
+                  <div className="ai-score-text">
+                    <p className="ai-reason">{aiScore.reason}</p>
+                    <p className="ai-rec"><strong>Next step:</strong> {aiScore.recommendation}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Tags ── */}
+            <div className="notes-section">
+              <div className="notes-header">
+                <span className="notes-title">Tags</span>
+                {tags.length > 0 && <span className="notes-count">{tags.length}</span>}
+              </div>
+              <div className="tags-list">
+                {tags.map(t => (
+                  <span key={t} className="tag-chip">
+                    {t}
+                    <button className="tag-remove" onClick={() => handleRemoveTag(t)}>×</button>
+                  </span>
+                ))}
+                {tags.length === 0 && <span style={{ color: 'var(--text)', fontSize: 13 }}>No tags yet.</span>}
+              </div>
+              <div className="note-add" style={{ marginTop: 8 }}>
+                <input
+                  className="tag-input"
+                  placeholder="Add a tag… (Enter to add)"
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag() } }}
+                  disabled={savingTags}
+                />
+                <button className="btn-primary btn-sm" onClick={handleAddTag} disabled={savingTags || !tagInput.trim()}>
+                  {savingTags ? '…' : 'Add'}
+                </button>
+              </div>
+            </div>
+
             <div className="detail-table-wrap">
               <table className="detail-table">
                 <tbody>

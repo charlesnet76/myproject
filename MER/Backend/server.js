@@ -7,6 +7,10 @@ import userRoutes from "./routes/user.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import activityRoutes from "./routes/activity.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
+import dealRoutes from "./routes/deal.routes.js";
+import ticketRoutes from "./routes/ticket.routes.js";
+import segmentRoutes from "./routes/segment.routes.js";
+import aiRoutes from "./routes/ai.routes.js";
 
 dotenv.config();
 
@@ -31,6 +35,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/deals", dealRoutes);
+app.use("/api/tickets", ticketRoutes);
+app.use("/api/segments", segmentRoutes);
+app.use("/api/ai", aiRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)
