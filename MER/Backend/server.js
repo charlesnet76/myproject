@@ -5,6 +5,7 @@ import cors from "cors";
 import { v2 as cloudinary } from "cloudinary";
 import userRoutes from "./routes/user.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import activityRoutes from "./routes/activity.routes.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.get("/api/ping", (req, res) => res.json({ message: "pong", version: "1.0.0" 
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/activity", activityRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)

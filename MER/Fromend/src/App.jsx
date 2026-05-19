@@ -7,6 +7,7 @@ import UserDetailModal from './components/UserDetailModal'
 import AdminSettingsModal from './components/AdminSettingsModal'
 import ToastContainer from './components/Toast'
 import StatsChart from './components/StatsChart'
+import ActivityFeed from './components/ActivityFeed'
 import './App.css'
 
 const LIMIT = 12
@@ -66,7 +67,10 @@ function UserCard({ user, confirmDelete, onDeleteClick, onDeleteConfirm, onDelet
         <img className="card-avatar" src={user.photo || avatarUrl(user.first_name, user.last_name)} alt={`${user.first_name} ${user.last_name}`} />
       </div>
       <div className="card-body">
-        <div className="card-name">{user.first_name} {user.last_name}</div>
+        <div className="card-name-row">
+          <div className="card-name">{user.first_name} {user.last_name}</div>
+          <span className={`pill pill-sm ${(user.status || 'active').toLowerCase()}`}>{user.status || 'Active'}</span>
+        </div>
         <div className="card-email">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
           {user.email}
@@ -149,8 +153,10 @@ export default function App() {
   const [searchInput, setSearchInput] = useState(() => searchParams.get('q') || '')
   const [search, setSearch] = useState(() => searchParams.get('q') || '')
   const [genderFilter, setGenderFilter] = useState(() => searchParams.get('gender') || 'All')
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'All')
   const [sortIdx, setSortIdx] = useState(() => { const s = Number(searchParams.get('sort')); return s >= 0 && s < SORT_OPTIONS.length ? s : 0 })
   const [page, setPage] = useState(() => { const p = Number(searchParams.get('page')); return p >= 1 ? p : 1 })
+  const [activityKey, setActivityKey] = useState(0)
 
   const [showModal, setShowModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -175,10 +181,11 @@ export default function App() {
     const params = {}
     if (search) params.q = search
     if (genderFilter !== 'All') params.gender = genderFilter
+    if (statusFilter !== 'All') params.status = statusFilter
     if (sortIdx !== 0) params.sort = String(sortIdx)
     if (page !== 1) params.page = String(page)
     setSearchParams(params, { replace: true })
-  }, [search, genderFilter, sortIdx, page, setSearchParams])
+  }, [search, genderFilter, statusFilter, sortIdx, page, setSearchParams])
 
   // Debounce search input
   useEffect(() => {
@@ -192,6 +199,7 @@ export default function App() {
     const params = new URLSearchParams({ page, limit: LIMIT, sort, order })
     if (search) params.set('search', search)
     if (genderFilter !== 'All') params.set('gender', genderFilter)
+    if (statusFilter !== 'All') params.set('status', statusFilter)
     try {
       const res = await apiFetch(`/api/users?${params}`)
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
@@ -206,7 +214,7 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, genderFilter, sortIdx])
+  }, [page, search, genderFilter, statusFilter, sortIdx])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchUsers() }, [fetchUsers])
@@ -227,14 +235,15 @@ export default function App() {
     } catch { /* best-effort */ }
   }
 
-  const handleAdd = () => { fetchUsers(); addToast('User added') }
+  const bumpActivity = () => setActivityKey(k => k + 1)
+  const handleAdd = () => { fetchUsers(); bumpActivity(); addToast('User added') }
   const handleUpdate = (updated) => { setUsers(prev => prev.map(u => u._id === updated._id ? updated : u)); setSelectedUser(updated); addToast(`${updated.first_name} ${updated.last_name} updated`) }
   const handleDelete = async (id) => {
     try {
       await apiFetch(`/api/users/${id}`, { method: 'DELETE' })
       const deleted = users.find(u => u._id === id)
       addToast(`${deleted?.first_name ?? 'User'} ${deleted?.last_name ?? ''} deleted`)
-      fetchUsers()
+      bumpActivity(); fetchUsers()
     } catch { addToast('Failed to delete user', 'error') }
     finally { setConfirmDelete(null) }
   }
@@ -248,7 +257,7 @@ export default function App() {
     try {
       await Promise.all([...selectedIds].map(id => apiFetch(`/api/users/${id}`, { method: 'DELETE' })))
       addToast(`${selectedIds.size} users deleted`)
-      clearSelection()
+      bumpActivity(); clearSelection()
       fetchUsers()
     } catch { addToast('Bulk delete failed', 'error') }
     finally { setBulkDeleting(false) }
@@ -315,6 +324,8 @@ export default function App() {
           </div>
         )}
 
+        <ActivityFeed refresh={activityKey} />
+
         <div className="toolbar">
           <div className="search-wrap">
             <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
@@ -325,6 +336,12 @@ export default function App() {
               <button key={g} className={`filter-pill ${genderFilter === g ? 'active' : ''}`} onClick={() => { setGenderFilter(g); setPage(1); clearSelection() }}>{g}</button>
             ))}
           </div>
+          <select className="sort-select" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); clearSelection() }}>
+            <option value="All">All statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Banned">Banned</option>
+          </select>
           <select className="sort-select" value={sortIdx} onChange={e => { setSortIdx(Number(e.target.value)); setPage(1); clearSelection() }}>
             {SORT_OPTIONS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
           </select>
@@ -399,7 +416,7 @@ export default function App() {
       </main>
 
       {showModal    && <AddUserModal onClose={() => setShowModal(false)} onAdd={handleAdd} />}
-      {selectedUser && <UserDetailModal user={selectedUser} onClose={() => setSelectedUser(null)} onUpdate={handleUpdate} />}
+      {selectedUser && <UserDetailModal user={selectedUser} onClose={() => setSelectedUser(null)} onUpdate={handleUpdate} onToast={addToast} onActivityRefresh={bumpActivity} />}
       {showSettings && <AdminSettingsModal onClose={() => setShowSettings(false)} onToast={addToast} />}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>

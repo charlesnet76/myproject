@@ -864,6 +864,104 @@ input, select {
   padding: 20px 24px 24px;
 }
 
+/* ── Status pills ── */
+.pill.active   { background: rgba(34,197,94,0.1);  color: #16a34a; }
+.pill.inactive { background: rgba(234,179,8,0.1);  color: #ca8a04; }
+.pill.banned   { background: rgba(239,68,68,0.1);  color: #dc2626; }
+.pill-sm { font-size: 11px; padding: 2px 8px; }
+
+/* ── Card name row (name + status pill) ── */
+.card-name-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.card-name-row .card-name { flex: 1; }
+
+/* ── Detail modal scrollable ── */
+.detail-modal { max-height: 90vh; overflow-y: auto; }
+
+/* ── Shared textarea style ── */
+.detail-textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+}
+
+/* ── Email compose ── */
+.email-to { font-size: 13px; color: var(--text); margin: 0; strong { color: var(--text-h); } }
+
+/* ── Notes section ── */
+.notes-section {
+  border-top: 1px solid var(--border);
+  padding: 16px 24px 20px;
+}
+.notes-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.notes-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--text);
+}
+.notes-count {
+  font-size: 11px; font-weight: 600;
+  padding: 1px 7px; border-radius: 999px;
+  background: var(--accent-bg); color: var(--accent);
+}
+.notes-empty { font-size: 13px; color: var(--text); margin: 0 0 12px; }
+.notes-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 200px; overflow-y: auto; }
+.note-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; background: var(--code-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.note-body { flex: 1; min-width: 0; }
+.note-text { font-size: 13px; color: var(--text-h); margin: 0 0 4px; line-height: 1.45; }
+.note-meta { font-size: 11px; color: var(--text); }
+.note-delete { opacity: 0.45; padding: 3px; &:hover { opacity: 1; color: #ef4444; background: rgba(239,68,68,0.08); } }
+.note-add { display: flex; flex-direction: column; gap: 8px; }
+.note-input { min-height: 58px; }
+
+/* ── Activity feed ── */
+.activity-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.activity-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; background: none; border: none; cursor: pointer;
+  color: var(--text-h); transition: background 0.15s;
+  &:hover { background: var(--code-bg); }
+}
+.activity-toggle-label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.activity-chevron { color: var(--text); transition: transform 0.2s; flex-shrink: 0; }
+.activity-chevron.open { transform: rotate(180deg); }
+.activity-body { border-top: 1px solid var(--border); max-height: 260px; overflow-y: auto; }
+.activity-empty { font-size: 13px; color: var(--text); padding: 16px; margin: 0; text-align: center; }
+.activity-list { display: flex; flex-direction: column; }
+.activity-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  &:last-child { border-bottom: none; }
+}
+.activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.activity-text { flex: 1; line-height: 1.45; color: var(--text-h); }
+.activity-target { font-weight: 500; }
+.activity-detail { color: var(--text); font-size: 12px; }
+.activity-time { font-size: 12px; color: var(--text); white-space: nowrap; margin-top: 2px; }
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .stats-section { grid-template-columns: 1fr; }

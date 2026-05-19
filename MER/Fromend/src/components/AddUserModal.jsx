@@ -3,7 +3,7 @@ import { apiFetch } from '../utils/api'
 
 function AddUserModal({ onClose, onAdd }) {
   const [form, setForm] = useState({
-    first_name: '', last_name: '', email: '', gender: '', ip_address: '',
+    first_name: '', last_name: '', email: '', gender: '', ip_address: '', status: 'Active',
   })
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -65,6 +65,14 @@ function AddUserModal({ onClose, onAdd }) {
           <label>
             IP Address
             <input name="ip_address" value={form.ip_address} onChange={handleChange} placeholder="e.g. 192.168.1.1" />
+          </label>
+          <label>
+            Status
+            <select name="status" value={form.status} onChange={handleChange}>
+              <option>Active</option>
+              <option>Inactive</option>
+              <option>Banned</option>
+            </select>
           </label>
           {error && <p className="form-error">{error}</p>}
           <div className="form-actions">
