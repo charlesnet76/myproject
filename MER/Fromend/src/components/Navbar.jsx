@@ -1,14 +1,13 @@
 import { useAuth } from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import NotificationBell from './NotificationBell'
 
 export default function Navbar({ isDark, onToggleTheme, onSettings }) {
   const { admin, logout } = useAuth()
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const location  = useLocation()
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+  const handleLogout = () => { logout(); navigate('/login') }
 
   return (
     <nav className="navbar">
@@ -22,7 +21,8 @@ export default function Navbar({ isDark, onToggleTheme, onSettings }) {
       </div>
 
       <div className="navbar-links">
-        <span className="nav-link active">Users</span>
+        <Link to="/dashboard"  className={`nav-link ${location.pathname === '/dashboard'  ? 'active' : ''}`}>Users</Link>
+        <Link to="/analytics"  className={`nav-link ${location.pathname === '/analytics'  ? 'active' : ''}`}>Analytics</Link>
       </div>
 
       <div className="navbar-right">
@@ -32,6 +32,8 @@ export default function Navbar({ isDark, onToggleTheme, onSettings }) {
             <span className="admin-name">{admin.name}</span>
           </button>
         )}
+
+        <NotificationBell />
 
         <button className="theme-toggle" onClick={onToggleTheme} aria-label="Toggle theme">
           {isDark ? (

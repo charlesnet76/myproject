@@ -8,6 +8,7 @@ const adminSchema = new mongoose.Schema(
     password:          { type: String, required: true },
     resetToken:        { type: String, default: null },
     resetTokenExpiry:  { type: Date,   default: null },
+    theme:             { type: String, enum: ['light', 'dark'], default: 'light' },
   },
   { timestamps: true }
 );

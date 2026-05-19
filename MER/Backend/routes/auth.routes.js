@@ -17,7 +17,7 @@ router.post("/register", protect, async (req, res) => {
       return res.status(400).json({ error: "Email already in use" });
     const admin = await Admin.create({ name, email, password });
     const token = signToken(admin._id, admin.name);
-    res.status(201).json({ token, admin: { id: admin._id, name: admin.name, email: admin.email } });
+    res.status(201).json({ token, admin: { id: admin._id, name: admin.name, email: admin.email, theme: admin.theme } });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -30,7 +30,7 @@ router.post("/login", async (req, res) => {
     if (!admin || !(await admin.comparePassword(password)))
       return res.status(401).json({ error: "Invalid email or password" });
     const token = signToken(admin._id, admin.name);
-    res.json({ token, admin: { id: admin._id, name: admin.name, email: admin.email } });
+    res.json({ token, admin: { id: admin._id, name: admin.name, email: admin.email, theme: admin.theme } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -40,7 +40,7 @@ router.get("/me", protect, async (req, res) => {
   try {
     const admin = await Admin.findById(req.admin.id).select("-password");
     if (!admin) return res.status(404).json({ error: "Not found" });
-    res.json(admin);
+    res.json({ ...admin.toObject(), theme: admin.theme });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -111,6 +111,18 @@ router.post("/reset-password/:token", async (req, res) => {
     admin.resetTokenExpiry = null;
     await admin.save();
     res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch("/theme", protect, async (req, res) => {
+  try {
+    const { theme } = req.body;
+    if (!["light", "dark"].includes(theme))
+      return res.status(400).json({ error: "Theme must be 'light' or 'dark'" });
+    await Admin.findByIdAndUpdate(req.admin.id, { theme });
+    res.json({ message: "Theme updated" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

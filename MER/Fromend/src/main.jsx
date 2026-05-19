@@ -8,6 +8,7 @@ import LandingPage from './pages/LandingPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
+import AnalyticsPage from './pages/AnalyticsPage.jsx'
 import './index.css'
 
 function ProtectedRoute({ children }) {
@@ -31,6 +32,7 @@ function Root() {
           <Route path="/forgot-password"       element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/dashboard"             element={<ProtectedRoute><App /></ProtectedRoute>} />
+          <Route path="/analytics"             element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -134,10 +134,22 @@ function Pagination({ page, pages, total, onPage }) {
 }
 
 function getInitialDark() {
+  try {
+    const admin = JSON.parse(localStorage.getItem('admin') || 'null')
+    if (admin?.theme === 'dark') return true
+    if (admin?.theme === 'light') return false
+  } catch { /* ignore parse errors */ }
   const saved = localStorage.getItem('theme')
   if (saved === 'dark') return true
   if (saved === 'light') return false
   return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+function loadSearchHistory() {
+  try { return JSON.parse(localStorage.getItem('searchHistory') || '[]') } catch { return [] }
+}
+function saveSearchHistory(h) {
+  localStorage.setItem('searchHistory', JSON.stringify(h.slice(0, 8)))
 }
 
 export default function App() {
@@ -164,6 +176,8 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState(null)
   const [toasts, setToasts] = useState([])
   const [isDark, setIsDark] = useState(getInitialDark)
+  const [searchHistory, setSearchHistory] = useState(loadSearchHistory)
+  const [showHistory, setShowHistory] = useState(false)
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -187,9 +201,18 @@ export default function App() {
     setSearchParams(params, { replace: true })
   }, [search, genderFilter, statusFilter, sortIdx, page, setSearchParams])
 
-  // Debounce search input
+  // Debounce search input + update history
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(searchInput); setPage(1) }, 400)
+    const t = setTimeout(() => {
+      setSearch(searchInput); setPage(1)
+      if (searchInput.trim()) {
+        setSearchHistory(prev => {
+          const next = [searchInput.trim(), ...prev.filter(h => h !== searchInput.trim())]
+          saveSearchHistory(next)
+          return next.slice(0, 8)
+        })
+      }
+    }, 400)
     return () => clearTimeout(t)
   }, [searchInput])
 
@@ -299,7 +322,14 @@ export default function App() {
 
   return (
     <>
-      <Navbar isDark={isDark} onToggleTheme={() => setIsDark(d => !d)} onSettings={() => setShowSettings(true)} />
+      <Navbar isDark={isDark} onToggleTheme={() => {
+        const next = !isDark; setIsDark(next)
+        apiFetch('/api/auth/theme', { method: 'PATCH', body: JSON.stringify({ theme: next ? 'dark' : 'light' }) }).catch(() => {})
+        try {
+          const stored = JSON.parse(localStorage.getItem('admin') || 'null')
+          if (stored) localStorage.setItem('admin', JSON.stringify({ ...stored, theme: next ? 'dark' : 'light' }))
+        } catch { /* ignore parse errors */ }
+      }} onSettings={() => setShowSettings(true)} />
       <main className="main">
 
         <div className="page-header">
@@ -327,9 +357,24 @@ export default function App() {
         <ActivityFeed refresh={activityKey} />
 
         <div className="toolbar">
-          <div className="search-wrap">
+          <div className="search-wrap" style={{ position: 'relative' }}>
             <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
-            <input className="search" type="search" placeholder="Search by name or email…" value={searchInput} onChange={e => setSearchInput(e.target.value)} />
+            <input className="search" type="search" placeholder="Search by name or email…" value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onFocus={() => setShowHistory(true)}
+              onBlur={() => setTimeout(() => setShowHistory(false), 150)}
+            />
+            {showHistory && searchHistory.length > 0 && !searchInput && (
+              <div className="search-history-dropdown">
+                {searchHistory.map((h, i) => (
+                  <button key={i} className="search-history-item" onMouseDown={() => { setSearchInput(h); setShowHistory(false) }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.18-6.49"/></svg>
+                    {h}
+                  </button>
+                ))}
+                <button className="search-history-clear" onMouseDown={() => { setSearchHistory([]); saveSearchHistory([]) }}>Clear history</button>
+              </div>
+            )}
           </div>
           <div className="filter-pills">
             {GENDERS.map(g => (
