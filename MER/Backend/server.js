@@ -7,6 +7,7 @@ import userRoutes from "./routes/user.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import activityRoutes from "./routes/activity.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
+import reminderRoutes from "./routes/reminder.routes.js";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/reminders", reminderRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)

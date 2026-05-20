@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { apiFetch } from '../utils/api'
 
+const STAGES = ['Lead', 'Contacted', 'Qualified', 'Proposal', 'Closed Won', 'Closed Lost']
+
 function avatarUrl(first, last) {
   const seed = encodeURIComponent(`${first} ${last}`)
   return `https://api.dicebear.com/9.x/initials/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&fontFamily=Helvetica`
@@ -9,6 +11,11 @@ function avatarUrl(first, last) {
 function fmt(dateStr) {
   if (!dateStr) return '—'
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function fmtMoney(val, currency = 'USD') {
+  if (!val) return '—'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(val)
 }
 
 function timeAgoShort(dateStr) {
@@ -23,44 +30,64 @@ function timeAgoShort(dateStr) {
   return days < 30 ? `${days}d ago` : fmt(dateStr)
 }
 
+function isOverdue(dueAt) {
+  return !dueAt ? false : new Date(dueAt) < new Date()
+}
+
 const STATUS_CLASS = { Active: 'active', Inactive: 'inactive', Banned: 'banned' }
 
 const infoRows = [
-  { label: 'First Name',    key: 'first_name' },
-  { label: 'Last Name',     key: 'last_name' },
-  { label: 'Email',         key: 'email' },
-  { label: 'Gender',        key: 'gender' },
-  { label: 'Status',        key: 'status' },
-  { label: 'IP Address',    key: 'ip_address' },
-  { label: 'Last Activity', key: 'lastActivity', render: fmt },
-  { label: 'Member Since',  key: 'createdAt',    render: fmt },
-  { label: 'Last Updated',  key: 'updatedAt',    render: fmt },
+  { label: 'First Name',     key: 'first_name' },
+  { label: 'Last Name',      key: 'last_name' },
+  { label: 'Email',          key: 'email' },
+  { label: 'Gender',         key: 'gender' },
+  { label: 'Status',         key: 'status' },
+  { label: 'Pipeline Stage', key: 'pipelineStage' },
+  { label: 'IP Address',     key: 'ip_address' },
+  { label: 'Last Activity',  key: 'lastActivity', render: fmt },
+  { label: 'Member Since',   key: 'createdAt',    render: fmt },
 ]
 
 export default function UserDetailModal({ user, onClose, onUpdate, onToast, onActivityRefresh }) {
   const [isEditing, setIsEditing] = useState(false)
   const [form, setForm] = useState({
-    first_name: user.first_name,
-    last_name:  user.last_name,
-    email:      user.email,
-    gender:     user.gender    || '',
-    ip_address: user.ip_address || '',
-    status:     user.status    || 'Active',
+    first_name:     user.first_name,
+    last_name:      user.last_name,
+    email:          user.email,
+    gender:         user.gender      || '',
+    ip_address:     user.ip_address  || '',
+    status:         user.status      || 'Active',
+    pipelineStage:  user.pipelineStage || 'Lead',
+    deal_value:     user.deal?.value     || '',
+    deal_currency:  user.deal?.currency  || 'USD',
+    deal_closeDate: user.deal?.closeDate ? new Date(user.deal.closeDate).toISOString().slice(0, 10) : '',
+    deal_notes:     user.deal?.notes     || '',
   })
-  const [saving, setSaving]     = useState(false)
-  const [error, setError]       = useState(null)
+  const [saving, setSaving]       = useState(false)
+  const [error, setError]         = useState(null)
   const [uploading, setUploading] = useState(false)
   const photoInputRef = useRef(null)
 
   // Notes
-  const [notes, setNotes]         = useState([])
+  const [notes, setNotes]             = useState([])
   const [notesLoading, setNotesLoading] = useState(false)
-  const [newNote, setNewNote]     = useState('')
-  const [addingNote, setAddingNote] = useState(false)
+  const [newNote, setNewNote]         = useState('')
+  const [addingNote, setAddingNote]   = useState(false)
+
+  // Tags
+  const [tags, setTags]       = useState(user.tags || [])
+  const [tagInput, setTagInput] = useState('')
+  const [savingTags, setSavingTags] = useState(false)
+
+  // Reminders
+  const [reminders, setReminders]           = useState([])
+  const [remindersLoading, setRemindersLoading] = useState(false)
+  const [newReminder, setNewReminder]       = useState({ note: '', dueAt: '' })
+  const [addingReminder, setAddingReminder] = useState(false)
 
   // Email
-  const [showEmail, setShowEmail] = useState(false)
-  const [emailForm, setEmailForm] = useState({ subject: '', message: '' })
+  const [showEmail, setShowEmail]   = useState(false)
+  const [emailForm, setEmailForm]   = useState({ subject: '', message: '' })
   const [sendingEmail, setSendingEmail] = useState(false)
 
   useEffect(() => {
@@ -71,6 +98,16 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
       .then(d => setNotes(Array.isArray(d) ? d : []))
       .catch(() => setNotes([]))
       .finally(() => setNotesLoading(false))
+  }, [user._id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRemindersLoading(true)
+    apiFetch(`/api/users/${user._id}/reminders`)
+      .then(r => r.json())
+      .then(d => setReminders(Array.isArray(d) ? d : []))
+      .catch(() => setReminders([]))
+      .finally(() => setRemindersLoading(false))
   }, [user._id])
 
   const handlePhotoUpload = async (e) => {
@@ -91,9 +128,22 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
   const handleSave = async (e) => {
     e.preventDefault(); setSaving(true); setError(null)
     try {
-      const res = await apiFetch(`/api/users/${user._id}`, {
-        method: 'PUT', body: JSON.stringify(form),
-      })
+      const body = {
+        first_name:    form.first_name,
+        last_name:     form.last_name,
+        email:         form.email,
+        gender:        form.gender,
+        ip_address:    form.ip_address,
+        status:        form.status,
+        pipelineStage: form.pipelineStage,
+        deal: {
+          value:     Number(form.deal_value) || 0,
+          currency:  form.deal_currency || 'USD',
+          closeDate: form.deal_closeDate || null,
+          notes:     form.deal_notes,
+        },
+      }
+      const res  = await apiFetch(`/api/users/${user._id}`, { method: 'PUT', body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to update user')
       onUpdate(data); onActivityRefresh?.(); setIsEditing(false)
@@ -102,18 +152,52 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
   }
 
   const handleCancel = () => {
-    setForm({ first_name: user.first_name, last_name: user.last_name, email: user.email,
-              gender: user.gender || '', ip_address: user.ip_address || '', status: user.status || 'Active' })
+    setForm({
+      first_name:     user.first_name,
+      last_name:      user.last_name,
+      email:          user.email,
+      gender:         user.gender      || '',
+      ip_address:     user.ip_address  || '',
+      status:         user.status      || 'Active',
+      pipelineStage:  user.pipelineStage || 'Lead',
+      deal_value:     user.deal?.value     || '',
+      deal_currency:  user.deal?.currency  || 'USD',
+      deal_closeDate: user.deal?.closeDate ? new Date(user.deal.closeDate).toISOString().slice(0, 10) : '',
+      deal_notes:     user.deal?.notes     || '',
+    })
     setError(null); setIsEditing(false)
   }
 
+  // ── Tags ──────────────────────────────────────────────────
+  const saveTags = async (nextTags) => {
+    setSavingTags(true)
+    try {
+      const res  = await apiFetch(`/api/users/${user._id}/tags`, { method: 'PATCH', body: JSON.stringify({ tags: nextTags }) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      onUpdate(data)
+    } catch (err) { onToast?.(err.message, 'error') }
+    finally { setSavingTags(false) }
+  }
+
+  const handleAddTag = () => {
+    const t = tagInput.trim()
+    if (!t || tags.includes(t)) { setTagInput(''); return }
+    const next = [...tags, t]
+    setTags(next); setTagInput(''); saveTags(next)
+  }
+
+  const handleRemoveTag = (t) => {
+    const next = tags.filter(x => x !== t)
+    setTags(next); saveTags(next)
+  }
+
+  // ── Notes ─────────────────────────────────────────────────
   const handleAddNote = async () => {
     if (!newNote.trim()) return
     setAddingNote(true)
     try {
-      const res = await apiFetch(`/api/users/${user._id}/notes`, {
-        method: 'POST', body: JSON.stringify({ text: newNote }),
-      })
+      const res  = await apiFetch(`/api/users/${user._id}/notes`, { method: 'POST', body: JSON.stringify({ text: newNote }) })
       const note = await res.json()
       if (!res.ok) throw new Error(note.error)
       setNotes(prev => [note, ...prev]); setNewNote('')
@@ -128,12 +212,40 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
     } catch (err) { onToast?.(err.message, 'error') }
   }
 
+  // ── Reminders ─────────────────────────────────────────────
+  const handleAddReminder = async () => {
+    if (!newReminder.note.trim() || !newReminder.dueAt) return
+    setAddingReminder(true)
+    try {
+      const res  = await apiFetch(`/api/users/${user._id}/reminders`, { method: 'POST', body: JSON.stringify(newReminder) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setReminders(prev => [...prev, data].sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt)))
+      setNewReminder({ note: '', dueAt: '' })
+    } catch (err) { onToast?.(err.message, 'error') }
+    finally { setAddingReminder(false) }
+  }
+
+  const handleToggleReminder = async (id) => {
+    try {
+      const res  = await apiFetch(`/api/reminders/${id}/done`, { method: 'PATCH' })
+      const data = await res.json()
+      setReminders(prev => prev.map(r => r._id === id ? data : r))
+    } catch (err) { onToast?.(err.message, 'error') }
+  }
+
+  const handleDeleteReminder = async (id) => {
+    try {
+      await apiFetch(`/api/reminders/${id}`, { method: 'DELETE' })
+      setReminders(prev => prev.filter(r => r._id !== id))
+    } catch (err) { onToast?.(err.message, 'error') }
+  }
+
+  // ── Email ─────────────────────────────────────────────────
   const handleSendEmail = async (e) => {
     e.preventDefault(); setSendingEmail(true)
     try {
-      const res = await apiFetch(`/api/users/${user._id}/email`, {
-        method: 'POST', body: JSON.stringify(emailForm),
-      })
+      const res  = await apiFetch(`/api/users/${user._id}/email`, { method: 'POST', body: JSON.stringify(emailForm) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       onToast?.('Email sent successfully')
@@ -168,6 +280,7 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {user.gender && <span className={`pill ${user.gender.toLowerCase()}`}>{user.gender}</span>}
               <span className={`pill ${STATUS_CLASS[user.status] || 'active'}`}>{user.status || 'Active'}</span>
+              {user.pipelineStage && <span className="pill pill-pipeline">{user.pipelineStage}</span>}
             </div>
           </div>
 
@@ -197,14 +310,8 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
             <label>Subject<input value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))} required placeholder="Enter subject…" /></label>
             <label>
               Message
-              <textarea
-                className="detail-textarea"
-                rows={4}
-                value={emailForm.message}
-                onChange={e => setEmailForm(f => ({ ...f, message: e.target.value }))}
-                required
-                placeholder="Write your message…"
-              />
+              <textarea className="detail-textarea" rows={4} value={emailForm.message}
+                onChange={e => setEmailForm(f => ({ ...f, message: e.target.value }))} required placeholder="Write your message…" />
             </label>
             <div className="form-actions">
               <button type="button" className="btn-secondary" onClick={() => { setShowEmail(false); setEmailForm({ subject: '', message: '' }) }}>Cancel</button>
@@ -218,7 +325,7 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
           <form onSubmit={handleSave} className="detail-form">
             <div className="form-row">
               <label>First Name<input name="first_name" value={form.first_name} onChange={handleChange} required /></label>
-              <label>Last Name<input name="last_name"  value={form.last_name}  onChange={handleChange} required /></label>
+              <label>Last Name<input  name="last_name"  value={form.last_name}  onChange={handleChange} required /></label>
             </div>
             <label>Email<input name="email" type="email" value={form.email} onChange={handleChange} required /></label>
             <div className="form-row">
@@ -234,7 +341,25 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
                 </select>
               </label>
             </div>
-            <label>IP Address<input name="ip_address" value={form.ip_address} onChange={handleChange} /></label>
+            <div className="form-row">
+              <label>IP Address<input name="ip_address" value={form.ip_address} onChange={handleChange} /></label>
+              <label>Pipeline Stage
+                <select name="pipelineStage" value={form.pipelineStage} onChange={handleChange}>
+                  {STAGES.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </label>
+            </div>
+
+            <div className="form-section-title">Deal / Opportunity</div>
+            <div className="form-row">
+              <label>Deal Value<input name="deal_value" type="number" min="0" step="1" value={form.deal_value} onChange={handleChange} placeholder="0" /></label>
+              <label>Currency<input  name="deal_currency" value={form.deal_currency} onChange={handleChange} placeholder="USD" /></label>
+            </div>
+            <div className="form-row">
+              <label>Close Date<input name="deal_closeDate" type="date" value={form.deal_closeDate} onChange={handleChange} /></label>
+            </div>
+            <label>Deal Notes<textarea className="detail-textarea" name="deal_notes" rows={2} value={form.deal_notes} onChange={handleChange} placeholder="Notes about this deal…" /></label>
+
             {error && <p className="form-error">{error}</p>}
             <div className="form-actions">
               <button type="button" className="btn-secondary" onClick={handleCancel}>Cancel</button>
@@ -250,20 +375,135 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
               <table className="detail-table">
                 <tbody>
                   {infoRows.map(({ label, key, render }) => (
-                    <tr key={key}>
-                      <th>{label}</th>
-                      <td>{render ? render(user[key]) : (user[key] || '—')}</td>
-                    </tr>
+                    <tr key={key}><th>{label}</th><td>{render ? render(user[key]) : (user[key] || '—')}</td></tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Notes */}
-            <div className="notes-section">
-              <div className="notes-header">
-                <span className="notes-title">Notes</span>
-                {notes.length > 0 && <span className="notes-count">{notes.length}</span>}
+            {/* ── Deal ── */}
+            {(user.deal?.value > 0 || user.deal?.notes) && (
+              <div className="detail-section">
+                <div className="detail-section-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  Deal
+                </div>
+                <div className="deal-grid">
+                  {user.deal?.value > 0 && (
+                    <div className="deal-stat">
+                      <span className="deal-val">{fmtMoney(user.deal.value, user.deal?.currency)}</span>
+                      <span className="deal-label">Value</span>
+                    </div>
+                  )}
+                  {user.deal?.closeDate && (
+                    <div className="deal-stat">
+                      <span className="deal-val">{fmt(user.deal.closeDate)}</span>
+                      <span className="deal-label">Close Date</span>
+                    </div>
+                  )}
+                </div>
+                {user.deal?.notes && <p className="deal-notes">{user.deal.notes}</p>}
+              </div>
+            )}
+
+            {/* ── Tags ── */}
+            <div className="detail-section">
+              <div className="detail-section-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                Tags {savingTags && <span className="tags-saving">saving…</span>}
+              </div>
+              <div className="tags-list">
+                {tags.map(t => (
+                  <span key={t} className="tag-chip">
+                    {t}
+                    <button className="tag-remove" onClick={() => handleRemoveTag(t)} aria-label={`Remove ${t}`}>×</button>
+                  </span>
+                ))}
+                {tags.length === 0 && <span className="tags-empty">No tags yet</span>}
+              </div>
+              <div className="tag-add-row">
+                <input
+                  className="tag-input"
+                  placeholder="Add tag…"
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag() } }}
+                />
+                <button className="btn-secondary btn-sm" onClick={handleAddTag} disabled={!tagInput.trim()}>Add</button>
+              </div>
+            </div>
+
+            {/* ── Reminders ── */}
+            <div className="detail-section">
+              <div className="detail-section-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                Reminders
+                {reminders.filter(r => !r.done).length > 0 && (
+                  <span className="reminders-badge">{reminders.filter(r => !r.done).length}</span>
+                )}
+              </div>
+
+              {remindersLoading ? (
+                <p className="notes-empty">Loading…</p>
+              ) : reminders.length > 0 ? (
+                <div className="reminders-list">
+                  {reminders.map(r => (
+                    <div key={r._id} className={`reminder-row${r.done ? ' done' : ''}${isOverdue(r.dueAt) && !r.done ? ' overdue' : ''}`}>
+                      <button className="reminder-check" onClick={() => handleToggleReminder(r._id)} aria-label="Toggle done">
+                        {r.done
+                          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          : <span className="reminder-circle" />
+                        }
+                      </button>
+                      <div className="reminder-body">
+                        <p className="reminder-note">{r.note}</p>
+                        <div className="reminder-meta">
+                          {isOverdue(r.dueAt) && !r.done
+                            ? <span className="reminder-overdue">Overdue · </span>
+                            : null
+                          }
+                          {new Date(r.dueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {' · '}{r.adminName}
+                        </div>
+                      </div>
+                      <button className="icon-btn note-delete" onClick={() => handleDeleteReminder(r._id)} title="Delete">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="notes-empty">No reminders set.</p>
+              )}
+
+              <div className="reminder-add">
+                <input
+                  className="reminder-note-input"
+                  placeholder="Reminder note…"
+                  value={newReminder.note}
+                  onChange={e => setNewReminder(r => ({ ...r, note: e.target.value }))}
+                />
+                <input
+                  type="date"
+                  className="reminder-date-input"
+                  value={newReminder.dueAt}
+                  onChange={e => setNewReminder(r => ({ ...r, dueAt: e.target.value }))}
+                />
+                <button
+                  className="btn-primary btn-sm"
+                  onClick={handleAddReminder}
+                  disabled={addingReminder || !newReminder.note.trim() || !newReminder.dueAt}
+                >
+                  {addingReminder ? '…' : 'Add'}
+                </button>
+              </div>
+            </div>
+
+            {/* ── Notes ── */}
+            <div className="detail-section">
+              <div className="detail-section-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Notes {notes.length > 0 && <span className="notes-count">{notes.length}</span>}
               </div>
 
               {notesLoading ? (
@@ -287,11 +527,8 @@ export default function UserDetailModal({ user, onClose, onUpdate, onToast, onAc
               )}
 
               <div className="note-add">
-                <textarea
-                  className="detail-textarea note-input"
-                  rows={2}
-                  placeholder="Add a note… (Enter to submit)"
-                  value={newNote}
+                <textarea className="detail-textarea note-input" rows={2}
+                  placeholder="Add a note… (Enter to submit)" value={newNote}
                   onChange={e => setNewNote(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddNote() } }}
                 />

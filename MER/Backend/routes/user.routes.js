@@ -4,6 +4,7 @@ import sgMail from "@sendgrid/mail";
 import { v2 as cloudinary } from "cloudinary";
 import User from "../models/user.model.js";
 import Note from "../models/note.model.js";
+import Reminder from "../models/reminder.model.js";
 import ActivityLog from "../models/activity.model.js";
 import { protect } from "../middleware/auth.middleware.js";
 
@@ -58,6 +59,23 @@ router.get("/", async (req, res) => {
       pages: Math.ceil(total / lim),
       stats: { total: globalTotal, male: maleCount, female: femaleCount, other: otherCount },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Pipeline ─────────────────────────────────────────────
+router.get("/pipeline", async (req, res) => {
+  try {
+    const stages = ["Lead", "Contacted", "Qualified", "Proposal", "Closed Won", "Closed Lost"];
+    const users = await User.find({}, "first_name last_name email photo pipelineStage deal tags status");
+    const grouped = {};
+    stages.forEach(s => (grouped[s] = []));
+    users.forEach(u => {
+      const stage = stages.includes(u.pipelineStage) ? u.pipelineStage : "Lead";
+      grouped[stage].push(u);
+    });
+    res.json(grouped);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -203,6 +221,44 @@ router.delete("/:id/notes/:noteId", async (req, res) => {
     res.json({ message: "Note deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Tags ─────────────────────────────────────────────────
+router.patch("/:id/tags", async (req, res) => {
+  try {
+    const tags = Array.isArray(req.body.tags) ? req.body.tags.map(t => String(t).trim()).filter(Boolean) : [];
+    const user = await User.findByIdAndUpdate(req.params.id, { tags }, { new: true });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Reminders ─────────────────────────────────────────────
+router.get("/:id/reminders", async (req, res) => {
+  try {
+    const reminders = await Reminder.find({ userId: req.params.id }).sort({ dueAt: 1 });
+    res.json(reminders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/reminders", async (req, res) => {
+  try {
+    const { note, dueAt } = req.body;
+    if (!note?.trim() || !dueAt) return res.status(400).json({ error: "note and dueAt are required" });
+    const reminder = await Reminder.create({
+      userId:    req.params.id,
+      adminName: req.admin.name || "Admin",
+      note:      note.trim(),
+      dueAt:     new Date(dueAt),
+    });
+    res.status(201).json(reminder);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

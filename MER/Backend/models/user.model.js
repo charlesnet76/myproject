@@ -10,6 +10,18 @@ const userSchema = new mongoose.Schema(
     status:     { type: String, enum: ['Active', 'Inactive', 'Banned'], default: 'Active' },
     photo: { type: String, default: null },
     lastActivity: { type: Date, default: null },
+    tags: [{ type: String }],
+    pipelineStage: {
+      type: String,
+      enum: ["Lead", "Contacted", "Qualified", "Proposal", "Closed Won", "Closed Lost"],
+      default: "Lead",
+    },
+    deal: {
+      value:     { type: Number, default: 0 },
+      currency:  { type: String, default: "USD" },
+      closeDate: { type: Date },
+      notes:     { type: String },
+    },
   },
   { timestamps: true }
 );

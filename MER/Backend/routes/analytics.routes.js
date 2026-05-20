@@ -9,7 +9,7 @@ router.get("/", async (req, res) => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [regsByDay, statusBreakdown, genderBreakdown, recentlyActive, total, active, inactive, banned] =
+    const [regsByDay, statusBreakdown, genderBreakdown, recentlyActive, total, active, inactive, banned, pipelineBreakdown, dealAgg] =
       await Promise.all([
         User.aggregate([
           { $match: { createdAt: { $gte: thirtyDaysAgo } } },
@@ -26,7 +26,14 @@ router.get("/", async (req, res) => {
         User.countDocuments({ status: "Active" }),
         User.countDocuments({ status: "Inactive" }),
         User.countDocuments({ status: "Banned" }),
+        User.aggregate([{ $group: { _id: "$pipelineStage", count: { $sum: 1 } } }]),
+        User.aggregate([
+          { $match: { "deal.value": { $gt: 0 } } },
+          { $group: { _id: null, totalValue: { $sum: "$deal.value" }, count: { $sum: 1 } } },
+        ]),
       ]);
+
+    const deal = dealAgg[0] || { totalValue: 0, count: 0 };
 
     res.json({
       registrationsByDay: regsByDay,
@@ -34,6 +41,8 @@ router.get("/", async (req, res) => {
       genderBreakdown,
       recentlyActive,
       totals: { total, active, inactive, banned },
+      pipelineBreakdown,
+      deal: { totalValue: deal.totalValue, count: deal.count },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
