@@ -1,0 +1,111 @@
+.dd-page { min-height: 100svh; background: var(--page-bg); }
+.dd-main { max-width: 1100px; }
+
+/* ── KPI row ── */
+.dd-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dd-metric-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.dd-metric-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.dd-metric-icon svg { width: 18px; height: 18px; }
+
+.dd-metric-body   { min-width: 0; }
+.dd-metric-value  { font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -0.8px; }
+.dd-metric-label  { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text); margin-top: 3px; }
+.dd-metric-sub    { font-size: 11px; color: var(--text); margin-top: 2px; }
+
+/* ── Sections ── */
+.dd-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.dd-section-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.dd-section-title { font-size: 14px; font-weight: 650; color: var(--text-h); letter-spacing: -0.2px; }
+.dd-section-sub   { font-size: 12px; color: var(--text); }
+
+/* ── Two-column grid ── */
+.dd-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 0;
+}
+.dd-section { margin-bottom: 16px; }
+
+/* ── Area chart ── */
+.dd-area-svg { display: block; width: 100%; overflow: visible; }
+
+/* ── Donut ── */
+.dd-donut-wrap  { display: flex; align-items: center; gap: 24px; }
+.dd-donut-legend { display: flex; flex-direction: column; gap: 10px; }
+.dd-legend-row  { display: flex; align-items: center; gap: 8px; }
+.dd-legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dd-legend-label { font-size: 13px; color: var(--text-h); font-weight: 500; width: 52px; flex-shrink: 0; }
+.dd-legend-val  { font-size: 13px; font-weight: 600; color: var(--text-h); width: 42px; }
+.dd-legend-pct  { font-size: 11px; color: var(--text); }
+
+/* ── Horizontal bars ── */
+.dd-hbar-list  { display: flex; flex-direction: column; gap: 11px; }
+.dd-hbar-row   { display: flex; align-items: center; gap: 10px; }
+.dd-hbar-label {
+  font-size: 12px; color: var(--text-h); font-weight: 500;
+  width: 96px; flex-shrink: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dd-hbar-track { flex: 1; height: 8px; background: var(--code-bg); border-radius: 999px; overflow: hidden; }
+.dd-hbar-fill  { height: 100%; border-radius: 999px; transition: width 0.55s cubic-bezier(0.4,0,0.2,1); min-width: 3px; }
+.dd-hbar-val   { font-size: 12px; color: var(--text-h); font-weight: 600; width: 72px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+.dd-hbar-pct   { font-size: 11px; color: var(--text); font-weight: 400; }
+
+/* ── Recently active ── */
+.dd-active-list { display: flex; flex-direction: column; }
+.dd-active-row  {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.dd-active-row:last-child { border-bottom: none; }
+.dd-active-rank   { font-size: 12px; color: var(--text); font-weight: 600; width: 20px; text-align: center; flex-shrink: 0; }
+.dd-active-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; }
+.dd-active-info   { flex: 1; min-width: 0; }
+.dd-active-name   { font-size: 13px; font-weight: 600; color: var(--text-h); }
+.dd-active-email  { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-active-time   { font-size: 11px; color: var(--text); white-space: nowrap; flex-shrink: 0; }
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .dd-kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .dd-2col    { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .dd-kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .dd-metric-value { font-size: 20px; }
+}
